@@ -1,0 +1,431 @@
+<title>Fair Facility Atlas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an atlas plate. Controls strip on top, the map plate on the left, the
+   ledger (current method + comparison of all methods) on the right; stacks on phones. */
+:root {
+  --paper: #f6f7f8;
+  --plate: #ffffff;
+  --ink: #15191e;
+  --ink-2: #4c545e;
+  --ink-3: #7f8791;
+  --rule: #dfe2e6;
+  --road-1: #8f959c;
+  --road-2: #c4c8cd;
+  --outline: #a7adb4;
+  --accent: #2a78d6;
+  --accent-ink: #ffffff;
+  --seq-0: #e3eefb;
+  --seq-1: #2a78d6;
+  --seq-2: #0f3c73;
+  --unfair: #eb6834;
+  --closer: #2a78d6;
+  --farther: #eb6834;
+  --neutral: #e2e3e1;
+  --area: rgba(21, 25, 30, 0.42);
+  --star-edge: #ffffff;
+  --font-display: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --font-body: "Public Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #111418; --plate: #181c21; --ink: #eef0f2; --ink-2: #b4bbc3; --ink-3: #868e98; --rule: #2b3138;
+    --road-1: #6d747c; --road-2: #3d434a; --outline: #59606a; --accent: #4b93ea; --accent-ink: #0b0e12;
+    --seq-0: #1c2a3b; --seq-1: #3987e5; --seq-2: #b9d7fb; --unfair: #f07a4a; --closer: #4b93ea; --farther: #f07a4a;
+    --neutral: #3a3f45; --area: rgba(238, 240, 242, 0.42); --star-edge: #111418; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #111418; --plate: #181c21; --ink: #eef0f2; --ink-2: #b4bbc3; --ink-3: #868e98; --rule: #2b3138;
+  --road-1: #6d747c; --road-2: #3d434a; --outline: #59606a; --accent: #4b93ea; --accent-ink: #0b0e12;
+  --seq-0: #1c2a3b; --seq-1: #3987e5; --seq-2: #b9d7fb; --unfair: #f07a4a; --closer: #4b93ea; --farther: #f07a4a;
+  --neutral: #3a3f45; --area: rgba(238, 240, 242, 0.42); --star-edge: #111418; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+.wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: grid; gap: 6px; }
+.eyebrow { font-family: var(--font-data); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(26px, 3.4vw, 36px); line-height: 1.1; margin: 0; text-wrap: balance; }
+.lede { margin: 0; max-width: 72ch; color: var(--ink-2); }
+.lede b { color: var(--ink); font-weight: 600; }
+.controls { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; padding-block: 12px; border-block: 1px solid var(--rule); }
+.ctl { display: grid; gap: 4px; min-width: 0; }
+.ctl > span { font-family: var(--font-data); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--plate); flex-wrap: wrap; }
+.seg button { font: inherit; font-size: 13px; color: var(--ink-2); background: transparent; border: 0; padding: 6px 11px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.seg button:focus-visible, select:focus-visible, .zoom button:focus-visible, label.tog input:focus-visible, tr[tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+select { font: inherit; font-size: 13px; color: var(--ink); background: var(--plate); border: 1px solid var(--rule); border-radius: 6px; padding: 6px 8px; max-width: 100%; }
+.toggles { display: flex; gap: 14px; flex-wrap: wrap; }
+label.tog { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+@media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.plate { background: var(--plate); border: 1px solid var(--rule); border-radius: 8px; position: relative; overflow: hidden; }
+#map { display: block; width: 100%; height: min(72vh, 680px); min-height: 360px; touch-action: none; cursor: grab; }
+#map.dragging { cursor: grabbing; }
+.zoom { position: absolute; top: 10px; right: 10px; display: grid; gap: 4px; }
+.zoom button { width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--rule); background: var(--plate); color: var(--ink); font: 500 16px var(--font-body); cursor: pointer; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--rule); font-size: 12px; color: var(--ink-2); }
+.ramp { width: 140px; height: 8px; border-radius: 2px; }
+.key { display: inline-flex; gap: 6px; align-items: center; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.legend .num { font-family: var(--font-data); font-size: 11px; color: var(--ink-3); }
+#tip { position: absolute; pointer-events: none; background: var(--plate); color: var(--ink); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); min-width: 180px; }
+#tip .t { font-weight: 600; margin-bottom: 4px; }
+#tip dl { display: grid; grid-template-columns: auto auto; gap: 1px 12px; margin: 0; }
+#tip dt { color: var(--ink-3); }
+#tip dd { margin: 0; text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.ledger { display: grid; gap: 16px; min-width: 0; }
+.card { background: var(--plate); border: 1px solid var(--rule); border-radius: 8px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.card h2 { font-family: var(--font-display); font-weight: 600; font-size: 19px; margin: 0; line-height: 1.2; }
+.card p { margin: 0; color: var(--ink-2); font-size: 13px; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+.stat { display: grid; gap: 2px; padding-top: 8px; border-top: 1px solid var(--rule); }
+.stat .l { font-size: 12px; color: var(--ink-3); }
+.stat .v { font-family: var(--font-data); font-size: 20px; font-variant-numeric: tabular-nums; }
+.stat .v small { font-size: 12px; color: var(--ink-3); }
+.pill { display: inline-block; font-family: var(--font-data); font-size: 11px; padding: 1px 6px; border-radius: 99px; border: 1px solid currentColor; }
+.pill.ok { color: var(--accent); }
+.pill.bad { color: var(--unfair); }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; }
+th, td { padding: 6px 6px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 500; color: var(--ink-3); font-size: 11px; }
+td { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+td:first-child { font-family: var(--font-body); }
+tr[tabindex] { cursor: pointer; }
+tr.cur td { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+tbody tr:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.note { font-size: 12px; color: var(--ink-3); max-width: 80ch; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">US Census 2020 · block-group centres of population</div>
+    <h1>Fair Facility Atlas</h1>
+    <p class="lede">Each dot is a census block group. Its <b>fairness radius δ</b> is the smallest circle around it that holds 1/<i>k</i> of the region's population. A block group is <b>served fairly</b> when its nearest facility lies inside that circle. Compare where weighted <i>k</i>-means and the smooth min-max-min method (FMM) put the same number of facilities.</p>
+  </header>
+
+  <div class="controls" role="group" aria-label="Map controls">
+    <div class="ctl"><span>Region</span><div class="seg" id="region"></div></div>
+    <div class="ctl"><span>Method</span><select id="method" aria-label="Method"></select></div>
+    <div class="ctl"><span>Colour by</span>
+      <div class="seg" id="mode">
+        <button type="button" data-v="ratio" aria-pressed="true">Distance ÷ δ</button>
+        <button type="button" data-v="change" aria-pressed="false">Change vs. k-means</button>
+      </div>
+    </div>
+    <div class="ctl"><span>Layers</span>
+      <div class="toggles">
+        <label class="tog"><input type="checkbox" id="lyr-areas" checked> Service areas</label>
+        <label class="tog"><input type="checkbox" id="lyr-roads" checked> Roads</label>
+        <label class="tog"><input type="checkbox" id="lyr-unfair"> Only unfairly served</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="plate">
+      <canvas id="map" aria-label="Map of block groups and facilities"></canvas>
+      <div class="zoom">
+        <button type="button" id="zin" aria-label="Zoom in">+</button>
+        <button type="button" id="zout" aria-label="Zoom out">−</button>
+        <button type="button" id="zreset" aria-label="Reset view">⟲</button>
+      </div>
+      <div id="tip" hidden></div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="ledger">
+      <div class="card" id="current"></div>
+      <div class="card">
+        <h2>All methods, same region</h2>
+        <p>Seed 0 of the experiments. Click a row to show it on the map.</p>
+        <div class="tablewrap"><table id="cmp"></table></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">Distances are great-circle distances between block-group centres of population and facilities, in kilometres. Facilities are unconstrained points (they need not sit on a road). <i>λ</i> weighs the fairness term against the <i>k</i>-means cost; <i>λ</i>=∞ is the pure min-max-min problem; <i>γ</i> weighs the load-balance penalty. Data: U.S. Census Bureau (centres of population 2020, TIGER/Line roads, cartographic boundaries).</p>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const LABELS = {
+  "wkmeans": "Weighted k-means", "fmm_lam1.0": "FMM, λ = 1", "fmm_lam10.0": "FMM, λ = 10",
+  "fmm_laminf": "FMM, λ = ∞ (pure min-max-min)", "fmm_lam10_bal1.0": "FMM, λ = 10, γ = 1",
+  "fmm_lam10_bal10.0": "FMM, λ = 10, γ = 10", "fmm_lam10_bal100.0": "FMM, λ = 10, γ = 100"
+};
+const SHORT = {"wkmeans": "k-means", "fmm_lam1.0": "λ=1", "fmm_lam10.0": "λ=10", "fmm_laminf": "λ=∞",
+  "fmm_lam10_bal1.0": "λ=10 γ=1", "fmm_lam10_bal10.0": "λ=10 γ=10", "fmm_lam10_bal100.0": "λ=10 γ=100"};
+const ORDER = Object.keys(LABELS);
+const state = { region: "la_county", method: "fmm_lam10.0", mode: "ratio", areas: true, roads: true, onlyUnfair: false };
+try { const s = JSON.parse(localStorage.getItem("ffa-state") || "{}"); Object.assign(state, s); } catch (e) {}
+if (!DATA.regions[state.region]) state.region = "la_county";
+
+const R = 6371.0, rad = Math.PI / 180;
+function hav(la1, lo1, la2, lo2) {
+  const a = Math.sin((la2 - la1) * rad / 2) ** 2 + Math.cos(la1 * rad) * Math.cos(la2 * rad) * Math.sin((lo2 - lo1) * rad / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+const cache = {};
+function solve(reg, m) {
+  const key = reg + "|" + m;
+  if (cache[key]) return cache[key];
+  const g = DATA.regions[reg], C = g.centers[m];
+  if (!C) return null;
+  const n = g.lat.length, d = new Float64Array(n), a = new Int32Array(n);
+  for (let i = 0; i < n; i++) {
+    let best = Infinity, bj = 0;
+    for (let j = 0; j < C.length; j++) { const v = hav(g.lat[i], g.lon[i], C[j][0], C[j][1]); if (v < best) { best = v; bj = j; } }
+    d[i] = best; a[i] = bj;
+  }
+  let W = 0, unfair = 0, wd = 0, maxd = 0, alpha = 0;
+  const load = new Float64Array(C.length);
+  for (let i = 0; i < n; i++) {
+    const w = g.pop[i], r = d[i] / g.delta[i];
+    W += w; wd += w * d[i]; if (d[i] > maxd) maxd = d[i]; if (r > alpha) alpha = r; if (r > 1) unfair += w; load[a[i]] += w;
+  }
+  let H = 0; for (const l of load) { const p = l / W; if (p > 0) H -= p * Math.log(p); }
+  const res = { d, a, load: Array.from(load, l => l / W), alpha, unfair: unfair / W, meanD: wd / W, maxD: maxd, W,
+    entropy: H / Math.log(C.length) };
+  cache[key] = res;
+  return res;
+}
+
+// ---------------------------------------------------------------- view
+const cv = document.getElementById("map"), ctx = cv.getContext("2d");
+let view = null, dpr = 1;
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function bounds(g) {
+  let a = 90, b = -90, c = 180, e = -180;
+  for (let i = 0; i < g.lat.length; i++) { a = Math.min(a, g.lat[i]); b = Math.max(b, g.lat[i]); c = Math.min(c, g.lon[i]); e = Math.max(e, g.lon[i]); }
+  return { lat0: a, lat1: b, lon0: c, lon1: e };
+}
+function fit() {
+  const g = DATA.regions[state.region], bb = bounds(g), w = cv.clientWidth, h = cv.clientHeight;
+  const k = Math.cos((bb.lat0 + bb.lat1) / 2 * rad);
+  const sx = (w - 40) / ((bb.lon1 - bb.lon0) * k), sy = (h - 40) / (bb.lat1 - bb.lat0);
+  const s = Math.min(sx, sy);
+  view = { k, s, cx: (bb.lon0 + bb.lon1) / 2, cy: (bb.lat0 + bb.lat1) / 2 };
+}
+function px(lon, lat) { const w = cv.clientWidth, h = cv.clientHeight; return [w / 2 + (lon - view.cx) * view.k * view.s, h / 2 - (lat - view.cy) * view.s]; }
+function geo(x, y) { const w = cv.clientWidth, h = cv.clientHeight; return [view.cx + (x - w / 2) / (view.k * view.s), view.cy - (y - h / 2) / view.s]; }
+
+function lerp(c1, c2, t) {
+  const p = s => [1, 3, 5].map(i => parseInt(s.slice(i, i + 2), 16));
+  const a = p(c1), b = p(c2);
+  return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(",")})`;
+}
+function seq(t) { t = Math.max(0, Math.min(1, t)); return t < 0.6 ? lerp(css("--seq-0"), css("--seq-1"), t / 0.6) : lerp(css("--seq-1"), css("--seq-2"), (t - 0.6) / 0.4); }
+function div(t) { // t in [-1, 1]; negative = closer
+  t = Math.max(-1, Math.min(1, t));
+  return t < 0 ? lerp(css("--neutral"), css("--closer"), -t) : lerp(css("--neutral"), css("--farther"), t);
+}
+
+function drawLines(lines, color, width) {
+  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = "round"; ctx.lineCap = "round";
+  ctx.beginPath();
+  for (const L of lines) {
+    for (let i = 0; i < L.length; i += 2) { const [x, y] = px(L[i], L[i + 1]); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+  }
+  ctx.stroke();
+}
+function star(x, y, r, fill, edge) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; ctx.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a)); }
+  ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 1.4; ctx.strokeStyle = edge; ctx.stroke();
+}
+
+let changeScale = 1;
+function draw() {
+  const w = cv.clientWidth, h = cv.clientHeight;
+  dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = css("--plate"); ctx.fillRect(0, 0, w, h);
+  const g = DATA.regions[state.region], sol = solve(state.region, state.method), C = g.centers[state.method];
+  drawLines(g.outline, css("--outline"), 0.8);
+  if (state.roads && g.roads) { drawLines(g.roads.secondary, css("--road-2"), 0.7); drawLines(g.roads.primary, css("--road-1"), 1.3); }
+  if (state.areas) drawAreas(C);
+  const base = solve(state.region, "wkmeans");
+  if (state.mode === "change") {
+    const ch = Array.from(sol.d, (v, i) => Math.abs(v - base.d[i])).sort((x, y) => x - y);
+    changeScale = Math.max(0.5, ch[Math.floor(ch.length * 0.98)] || 1);
+  }
+  const zoomDot = Math.max(1.1, Math.min(4, 0.9 * Math.sqrt(view.s / 60)));
+  const r0 = g.lat.length > 10000 ? zoomDot * 0.8 : zoomDot;
+  const unfairCol = css("--unfair");
+  const idx = Array.from(g.lat.keys()).sort((i, j) => sol.d[i] / g.delta[i] - sol.d[j] / g.delta[j]);
+  for (const i of idx) {
+    const r = sol.d[i] / g.delta[i];
+    if (state.onlyUnfair && r <= 1) continue;
+    const [x, y] = px(g.lon[i], g.lat[i]);
+    if (x < -5 || y < -5 || x > w + 5 || y > h + 5) continue;
+    let col;
+    if (state.mode === "ratio") col = r > 1 ? unfairCol : seq(r);
+    else col = div((sol.d[i] - base.d[i]) / changeScale);
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(x, y, r > 1 && state.mode === "ratio" ? r0 * 1.35 : r0, 0, 2 * Math.PI); ctx.fill();
+  }
+  if (state.mode === "change" && state.method !== "wkmeans") {
+    for (const c of g.centers["wkmeans"]) { const [x, y] = px(c[1], c[0]); ctx.beginPath(); ctx.arc(x, y, 6, 0, 2 * Math.PI); ctx.lineWidth = 1.5; ctx.strokeStyle = css("--ink-2"); ctx.stroke(); }
+  }
+  for (const c of C) { const [x, y] = px(c[1], c[0]); star(x, y, 8, css("--ink"), css("--star-edge")); }
+  legend();
+}
+
+function drawAreas(C) {
+  const w = cv.clientWidth, h = cv.clientHeight, step = 3;
+  const nx = Math.ceil(w / step), ny = Math.ceil(h / step);
+  const lab = new Int16Array(nx * ny);
+  for (let yy = 0; yy < ny; yy++) for (let xx = 0; xx < nx; xx++) {
+    const [lon, lat] = geo(xx * step, yy * step);
+    let best = Infinity, bj = 0;
+    for (let j = 0; j < C.length; j++) { const v = hav(lat, lon, C[j][0], C[j][1]); if (v < best) { best = v; bj = j; } }
+    lab[yy * nx + xx] = bj;
+  }
+  ctx.fillStyle = css("--area");
+  for (let yy = 0; yy < ny; yy++) for (let xx = 0; xx < nx; xx++) {
+    const v = lab[yy * nx + xx];
+    if ((xx + 1 < nx && lab[yy * nx + xx + 1] !== v) || (yy + 1 < ny && lab[(yy + 1) * nx + xx] !== v)) ctx.fillRect(xx * step, yy * step, 1.2, 1.2);
+  }
+}
+
+function legend() {
+  const el = document.getElementById("legend");
+  if (state.mode === "ratio") {
+    const stops = [0, 0.25, 0.5, 0.75, 1].map(t => seq(t)).join(",");
+    el.innerHTML = `<span class="key"><span class="num">0</span><span class="ramp" style="background:linear-gradient(90deg,${stops})"></span><span class="num">1</span> distance ÷ δ, served fairly</span>
+      <span class="key"><span class="dot" style="background:var(--unfair)"></span> not served fairly (distance > δ)</span>
+      <span class="key">★ facility</span>${state.areas ? '<span class="key">··· service-area boundary</span>' : ""}`;
+  } else {
+    const s = changeScale.toFixed(1);
+    el.innerHTML = `<span class="key"><span class="num">−${s} km</span><span class="ramp" style="background:linear-gradient(90deg,${div(-1)},${div(0)},${div(1)})"></span><span class="num">+${s} km</span> change in distance to the nearest facility vs. weighted k-means</span>
+      <span class="key">★ ${LABELS[state.method]}</span><span class="key">○ weighted k-means</span>`;
+  }
+}
+
+// ---------------------------------------------------------------- side panel
+function fmtPct(v) { return (100 * v).toFixed(v < 0.1 ? 1 : 0) + "%"; }
+function panel() {
+  const g = DATA.regions[state.region], s = solve(state.region, state.method);
+  const minL = Math.min(...s.load), maxL = Math.max(...s.load);
+  document.getElementById("current").innerHTML = `
+    <div class="eyebrow">${g.name} · k = ${g.k} facilities · ${g.lat.length.toLocaleString()} block groups · ${(s.W / 1e6).toFixed(1)} M people</div>
+    <h2>${LABELS[state.method]}</h2>
+    <div class="stats">
+      <div class="stat"><span class="l">Worst ratio α</span><span class="v">${s.alpha.toFixed(2)} <span class="pill ${s.alpha <= 1 ? "ok" : "bad"}">${s.alpha <= 1 ? "all fair" : "exceeds δ"}</span></span></div>
+      <div class="stat"><span class="l">Population not served fairly</span><span class="v">${fmtPct(s.unfair)}<br><small>${Math.round(s.unfair * s.W).toLocaleString()} people</small></span></div>
+      <div class="stat"><span class="l">Mean distance (pop.-weighted)</span><span class="v">${s.meanD.toFixed(1)} <small>km</small></span></div>
+      <div class="stat"><span class="l">Longest distance</span><span class="v">${s.maxD.toFixed(0)} <small>km</small></span></div>
+      <div class="stat"><span class="l">Load per facility</span><span class="v">${(100 * minL).toFixed(1)}–${(100 * maxL).toFixed(1)}<small>%</small></span></div>
+      <div class="stat"><span class="l">Load balance (entropy)</span><span class="v">${s.entropy.toFixed(3)}</span></div>
+    </div>`;
+  const rows = ORDER.filter(m => g.centers[m]).map(m => {
+    const r = solve(state.region, m);
+    return `<tr tabindex="0" data-m="${m}" class="${m === state.method ? "cur" : ""}"><td>${SHORT[m]}</td><td>${r.alpha.toFixed(2)}</td><td>${fmtPct(r.unfair)}</td><td>${r.meanD.toFixed(1)}</td><td>${r.maxD.toFixed(0)}</td><td>${r.entropy.toFixed(3)}</td></tr>`;
+  }).join("");
+  const t = document.getElementById("cmp");
+  t.innerHTML = `<thead><tr><th>Method</th><th>α</th><th>unfair pop.</th><th>mean km</th><th>max km</th><th>balance</th></tr></thead><tbody>${rows}</tbody>`;
+  t.querySelectorAll("tr[data-m]").forEach(tr => {
+    const go = () => { state.method = tr.dataset.m; sync(); };
+    tr.addEventListener("click", go);
+    tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+  });
+}
+
+// ---------------------------------------------------------------- controls
+const regionEl = document.getElementById("region"), methodEl = document.getElementById("method");
+for (const [k, g] of Object.entries(DATA.regions)) {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = g.name; b.dataset.v = k;
+  b.addEventListener("click", () => { state.region = k; fit(); sync(); }); regionEl.appendChild(b);
+}
+for (const m of ORDER) { const o = document.createElement("option"); o.value = m; o.textContent = LABELS[m]; methodEl.appendChild(o); }
+methodEl.addEventListener("change", () => { state.method = methodEl.value; sync(); });
+document.querySelectorAll("#mode button").forEach(b => b.addEventListener("click", () => { state.mode = b.dataset.v; sync(); }));
+const lyr = { "lyr-areas": "areas", "lyr-roads": "roads", "lyr-unfair": "onlyUnfair" };
+for (const [id, k] of Object.entries(lyr)) { const el = document.getElementById(id); el.checked = state[k]; el.addEventListener("change", () => { state[k] = el.checked; sync(); }); }
+
+function sync() {
+  regionEl.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === state.region)));
+  document.querySelectorAll("#mode button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === state.mode)));
+  const g = DATA.regions[state.region];
+  if (!g.centers[state.method]) state.method = "wkmeans";
+  methodEl.value = state.method;
+  document.getElementById("lyr-roads").disabled = !g.roads;
+  try { localStorage.setItem("ffa-state", JSON.stringify(state)); } catch (e) {}
+  draw(); panel();
+}
+
+// ---------------------------------------------------------------- pan, zoom, hover
+let drag = null;
+cv.addEventListener("pointerdown", e => { drag = { x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy }; cv.setPointerCapture(e.pointerId); cv.classList.add("dragging"); tip.hidden = true; });
+cv.addEventListener("pointermove", e => {
+  if (drag) {
+    view.cx = drag.cx - (e.clientX - drag.x) / (view.k * view.s); view.cy = drag.cy + (e.clientY - drag.y) / view.s;
+    schedule(); return;
+  }
+  hover(e);
+});
+cv.addEventListener("pointerup", () => { drag = null; cv.classList.remove("dragging"); });
+cv.addEventListener("pointerleave", () => { tip.hidden = true; });
+function zoomAt(f, x, y) {
+  const [lon, lat] = geo(x, y); view.s *= f;
+  const [lon2, lat2] = geo(x, y); view.cx += lon - lon2; view.cy += lat - lat2; schedule();
+}
+cv.addEventListener("wheel", e => { e.preventDefault(); const r = cv.getBoundingClientRect(); zoomAt(e.deltaY < 0 ? 1.25 : 0.8, e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+document.getElementById("zin").onclick = () => zoomAt(1.5, cv.clientWidth / 2, cv.clientHeight / 2);
+document.getElementById("zout").onclick = () => zoomAt(1 / 1.5, cv.clientWidth / 2, cv.clientHeight / 2);
+document.getElementById("zreset").onclick = () => { fit(); draw(); };
+let raf = 0; function schedule() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; draw(); }); }
+
+const tip = document.getElementById("tip");
+function hover(e) {
+  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  const g = DATA.regions[state.region], s = solve(state.region, state.method), C = g.centers[state.method];
+  let html = null;
+  for (let j = 0; j < C.length; j++) {
+    const [cx, cy] = px(C[j][1], C[j][0]);
+    if ((cx - x) ** 2 + (cy - y) ** 2 < 100) {
+      let worst = 0; for (let i = 0; i < g.lat.length; i++) if (s.a[i] === j) worst = Math.max(worst, s.d[i] / g.delta[i]);
+      html = `<div class="t">Facility ${j + 1}</div><dl><dt>Population served</dt><dd>${Math.round(s.load[j] * s.W).toLocaleString()}</dd><dt>Share of region</dt><dd>${(100 * s.load[j]).toFixed(1)}%</dd><dt>Worst ratio in area</dt><dd>${worst.toFixed(2)}</dd></dl>`;
+      break;
+    }
+  }
+  if (!html) {
+    let bi = -1, bd = 64;
+    for (let i = 0; i < g.lat.length; i++) { const [px_, py_] = px(g.lon[i], g.lat[i]); const dd = (px_ - x) ** 2 + (py_ - y) ** 2; if (dd < bd) { bd = dd; bi = i; } }
+    if (bi >= 0) {
+      const ratio = s.d[bi] / g.delta[bi], b = solve(state.region, "wkmeans");
+      html = `<div class="t">Block group · ${g.pop[bi].toLocaleString()} people</div><dl>
+        <dt>Fairness radius δ</dt><dd>${g.delta[bi].toFixed(1)} km</dd>
+        <dt>Nearest facility</dt><dd>${s.d[bi].toFixed(1)} km</dd>
+        <dt>Distance ÷ δ</dt><dd>${ratio.toFixed(2)} ${ratio > 1 ? "✕" : "✓"}</dd>
+        ${state.method !== "wkmeans" ? `<dt>Under k-means</dt><dd>${b.d[bi].toFixed(1)} km</dd>` : ""}</dl>`;
+    }
+  }
+  if (!html) { tip.hidden = true; return; }
+  tip.innerHTML = html; tip.hidden = false;
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  tip.style.left = Math.min(x + 14, cv.clientWidth - tw - 6) + "px";
+  tip.style.top = Math.max(6, Math.min(y + 14, cv.clientHeight - th - 6)) + "px";
+}
+
+new ResizeObserver(() => { const old = view; fit(); if (old) { view.cx = old.cx; view.cy = old.cy; } draw(); }).observe(cv);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => draw());
+new MutationObserver(() => draw()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+fit(); sync();
+</script>

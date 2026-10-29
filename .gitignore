@@ -1,0 +1,17 @@
+# generated data and results (recreate with prepare_data.py / run scripts)
+data/
+data_maps/
+results/
+results_local/
+results_remote/
+paper_out/
+logs/
+jobs/
+jobs_gpu/
+interactive/explorer.html
+# the paper lives in its own (Overleaf) repository
+paper/
+# environments
+.venv-maps/
+__pycache__/
+*.pyc
