@@ -8,7 +8,7 @@ import time
 import numpy as np
 import torch
 
-import fmm
+from fairmmm import _core as fmm
 
 name = sys.argv[1]
 run_lspp = len(sys.argv) > 2 and sys.argv[2] == "lspp"

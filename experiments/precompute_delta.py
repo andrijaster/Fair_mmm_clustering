@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-import fmm
+from fairmmm import _core as fmm
 
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "data" / "delta"

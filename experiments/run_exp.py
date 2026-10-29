@@ -5,6 +5,7 @@ methods: kmeans, fmm, tkm, greedy, lspp, icml20
 """
 
 import argparse
+import os
 import json
 import math
 import random
@@ -15,10 +16,11 @@ from pathlib import Path
 import numpy as np
 import torch
 
-import fmm
+from fairmmm import _core as fmm
 
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT.parent / "gr"))
+# google-research checkout holding individually_fair_clustering/ (baselines of Bateni et al.)
+sys.path.insert(0, os.environ.get("FAIRMMM_BASELINES", str(ROOT / "gr")))
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--data", required=True)

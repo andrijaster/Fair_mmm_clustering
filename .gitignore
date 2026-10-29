@@ -1,17 +1,23 @@
-# generated data and results (recreate with prepare_data.py / run scripts)
-data/
-data_maps/
-results/
-results_local/
-results_remote/
-paper_out/
-logs/
-jobs/
-jobs_gpu/
-interactive/explorer.html
+# generated data and results (recreate with the scripts in experiments/)
+experiments/data/
+experiments/data_maps/
+experiments/results/
+experiments/results_local/
+experiments/results_remote/
+experiments/paper_out/
+experiments/logs/
+experiments/jobs/
+experiments/jobs_gpu/
+experiments/gr/
+experiments/interactive/explorer.html
 # the paper lives in its own (Overleaf) repository
 paper/
-# environments
+# environments and build artefacts
+.venv/
 .venv-maps/
 __pycache__/
 *.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/

@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-import fmm_ext as fx
+from fairmmm import _weighted as fx
 
 ROOT = Path(__file__).resolve().parent
 R_EARTH = 6371.0

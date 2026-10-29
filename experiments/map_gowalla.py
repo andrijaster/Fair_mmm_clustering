@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-import fmm
+from fairmmm import _core as fmm
 
 ROOT = Path(__file__).resolve().parent
 with gzip.open(ROOT / "data/raw/gowalla.txt.gz", "rt") as f:

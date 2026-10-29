@@ -22,7 +22,7 @@ from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 ROOT = Path(__file__).resolve().parent
 RES = ROOT / "results_local"
 MAPS = ROOT / "data_maps"
-FIG = ROOT / "paper" / "figs"
+FIG = ROOT.parent / "paper" / "figs"  # the paper repository is checked out next to experiments/
 FIG.mkdir(parents=True, exist_ok=True)
 
 INK, MUTED, ROAD = "#0b0b0b", "#8a8984", "#c9c8c3"

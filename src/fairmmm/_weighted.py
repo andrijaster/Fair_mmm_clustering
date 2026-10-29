@@ -13,7 +13,7 @@ import math
 
 import torch
 
-from fmm import _schedule, kmeanspp, log_mean_exp, pairwise_dist, soft_ratio
+from ._core import _schedule, kmeanspp, log_mean_exp, pairwise_dist, soft_ratio
 
 
 @torch.no_grad()
