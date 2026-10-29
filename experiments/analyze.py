@@ -239,6 +239,28 @@ def fronts(by, front_rows):
             cells.append(f"{hypervolume(pts, ref):.3f}" if pts else "--")
         lines.append(f"\\textsf{{{d}}} & " + " & ".join(cells) + " \\\\")
     (TAB / "hv_rows.tex").write_text("\n".join(lines) + "\n")
+    # sensitivity: ratio of the FMM hypervolume to the best other front for other reference points
+    for fa, cc in [(1.05, 2.0), (1.1, 2.0), (1.1, 2.5), (1.1, 3.0), (1.2, 2.5), (1.2, 3.0)]:
+        ratios = []
+        for d in DATASETS:
+            base = [mean_of(by[(d, ("kmeans", None))], "max_ratio")]
+            if (d, ("lspp", None)) in by:
+                base.append(mean_of(by[(d, ("lspp", None))], "max_ratio"))
+            ref = (fa * max(base), cc)
+            km = mean_of(by[(d, ("kmeans", None))], "kmeans_cost")
+            others = [[(base[0], 1.0)], front_points(by, d, "tkm")]
+            if (d, ("lspp", None)) in by:
+                others.append([(base[1], mean_of(by[(d, ("lspp", None))], "kmeans_cost") / km)])
+            if any(r["data"] == d for r in front_rows):
+                others.append(front_points(by, d, "lspp", front_rows))
+            best = max(hypervolume(o, ref) for o in others)
+            ratios.append(hypervolume(front_points(by, d, "fmm"), ref) / best)
+        print(f"HV ref ({fa}, {cc}): FMM / best other min {min(ratios):.2f} max {max(ratios):.2f}")
+    for d in DATASETS:
+        pts = front_points(by, d, "lspp", front_rows) if any(r["data"] == d for r in front_rows) else []
+        if pts:
+            print(f"LSPP front {d}: alpha {min(p[0] for p in pts):.3f}-{max(p[0] for p in pts):.3f}, "
+                  f"cost {min(p[1] for p in pts):.3f}-{max(p[1] for p in pts):.3f}")
 
 
 def pareto(by, front_rows):
@@ -314,19 +336,28 @@ def dominance(rows, by):
 
 
 def stats(by):
-    """Bootstrap 95% CI of the difference in mean alpha, and Mann-Whitney U p-values."""
-    from scipy.stats import mannwhitneyu
+    """Bootstrap 95% CI of the difference in mean alpha and one-sided p-values. FMM with seed s
+    starts from the k-means solution with seed s, so that comparison is paired (Wilcoxon
+    signed-rank); runs of LSPP are independent of FMM (Mann-Whitney U)."""
+    from scipy.stats import mannwhitneyu, wilcoxon
 
     rng = np.random.default_rng(0)
     lines = []
     for d in DATASETS:
         cells = []
-        f = np.array([r["max_ratio"] for r in by[(d, ("fmm", 1.0))]])
-        for other in [("kmeans", None), ("lspp", None)]:
-            o = np.array([r["max_ratio"] for r in by.get((d, other), [])])
-            if not len(o):
-                cells.append("-- & --")
-                continue
+        fr = {r["seed"]: r["max_ratio"] for r in by[(d, ("fmm", 1.0))]}
+        f = np.array(list(fr.values()))
+        kr = {r["seed"]: r["max_ratio"] for r in by[(d, ("kmeans", None))]}
+        seeds = sorted(set(fr) & set(kr))
+        dd = np.array([fr[t] - kr[t] for t in seeds])
+        boot = [rng.choice(dd, len(dd)).mean() for _ in range(10000)]
+        lo, hi = np.percentile(boot, [2.5, 97.5])
+        p = wilcoxon(dd, alternative="less").pvalue
+        cells.append(f"${dd.mean():+.3f}$ $[{lo:+.3f}, {hi:+.3f}]$ & {p:.1e}")
+        o = np.array([r["max_ratio"] for r in by.get((d, ("lspp", None)), [])])
+        if not len(o):
+            cells.append("-- & --")
+        else:
             diffs = [rng.choice(f, len(f)).mean() - rng.choice(o, len(o)).mean() for _ in range(10000)]
             lo, hi = np.percentile(diffs, [2.5, 97.5])
             p = mannwhitneyu(f, o, alternative="less").pvalue
@@ -344,7 +375,8 @@ def scale():
     fig, axes = plt.subplots(1, 2, figsize=(W, 2.3))
     series = [
         ("FMM, GPU, full batch", rows, lambda r: r["method"] == "fmm" and r["device"] == "cuda" and not r["batch"], BLUE, "-o"),
-        ("FMM, GPU, mini-batch + memory", rows, lambda r: r["method"] == "fmm" and r["batch"], BLUE, "--D"),
+        ("FMM, GPU, mini-batch + memory", rows, lambda r: r["method"] == "fmm" and r["batch"]  # b0 <= n - h only
+         and r["batch"] + r.get("hard", 0) <= r["n_points"], BLUE, "--D"),
         ("FMM, CPU, 12 threads", excl or rows, lambda r: r["method"] == "fmm" and r["device"] == "cpu"
          and r.get("threads", 0) in (0, 12), ORANGE, "-s"),
         ("FMM, CPU, 1 thread", excl, lambda r: r["method"] == "fmm" and r.get("threads") == 1, ORANGE, ":s"),
