@@ -241,7 +241,7 @@ def stochastic():
             a = np.mean([[p[3] for p in r["curve"]][: len(it)] for r in rs], axis=0)
             lab = "full batch" if not b else f"batch {b}" + (", memory 1024" if h else ", no memory")
             ax.plot(it, a, sty, color=col, label=lab)
-        ax.set_title(f"{d}, $\\lambda=\\infty$")
+        ax.set_title(("gowalla ($10^6$ check-ins)" if d == "gowalla_full" else d) + r", $\lambda=\infty$")
         ax.set_xlabel("iteration")
         ax.set_ylabel(r"max ratio $\alpha$")
     axes[0].legend(frameon=False)
@@ -271,7 +271,7 @@ def ablations():
     for d, g in sorted(group(rows, "data").items()):
         variants = group(g, "eps0", "eps1", "iters")
         for (e0, e1, it), rs in sorted(variants.items()):
-            kind = "fixed" if e0 == e1 else "annealed"
+            kind = "fixed" if e0 == e1 else "geometric"
             c, _ = ms([r["kmeans_cost"] for r in rs])
             a, as_ = ms([r["max_ratio"] for r in rs])
             lines.append(f"{d} & {kind} & {e0:g}$\\to${e1:g} & {it} & {c:.4g} & {a:.3f}\\,$\\pm$\\,{as_:.3f} \\\\")
@@ -418,7 +418,7 @@ def compact(by):
                     cells.append("--")
                 else:
                     t = fmt.format(v)
-                    cells.append(f"\\textbf{{{t}}}" if bold and abs(v - best[d]) < 5e-3 else t)
+                    cells.append(f"\\textbf{{{t}}}" if bold and t == fmt.format(best[d]) else t)
             out.append(f"{name} & " + " & ".join(cells) + " \\\\")
     out += ["\\bottomrule", "\\end{tabular}"]
     (TAB / "main_compact.tex").write_text("\n".join(out) + "\n")
