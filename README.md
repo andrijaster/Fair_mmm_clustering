@@ -115,10 +115,11 @@ git -C gr sparse-checkout init --cone && git -C gr sparse-checkout set individua
 |---|---|
 | download and standardise the seven datasets | `python prepare_data.py` |
 | cache the fairness radii (identical for every method) | `python precompute_delta.py` |
-| write the job lists | `python make_jobs.py`, `python jobs_exact.py` |
+| write the job lists | `python make_jobs.py`, `python jobs_exact.py`, `python jobs_revision.py` |
 | run everything (GPU and CPU queues) | `bash run_all.sh`, `bash run_gpu.sh`, `bash run_exact.sh` |
+| added baselines, tuned TKM, LSPP parameter grid, ablations, radius samples, exclusive timings | `bash run_revision.sh` |
 | census case study | `python case_census.py` |
-| tables and figures | `python analyze.py`, `python make_maps.py` |
+| tables and figures | `python analyze.py`, `python make_maps.py`, `python toy_figure.py` |
 | interactive maps | `python make_interactive.py` |
 
 `run_exp.py` runs a single (dataset, method, seed) job and appends one JSON line to a results file, e.g.

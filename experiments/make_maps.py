@@ -33,7 +33,8 @@ DIV = LinearSegmentedColormap.from_list("div", ["#2a78d6", "#a9c9ef", "#e9e8e4",
 LABEL = {"wkmeans": "weighted $k$-means", "fmm_lam1.0": r"FMM, $\lambda=1$", "fmm_lam10.0": r"FMM, $\lambda=10$",
          "fmm_laminf": r"FMM, $\lambda=\infty$", "fmm_lam10_bal10.0": r"FMM, $\lambda=10$, $\gamma=10$",
          "fmm_lam10_bal1.0": r"FMM, $\lambda=10$, $\gamma=1$", "fmm_lam10_bal100.0": r"FMM, $\lambda=10$, $\gamma=100$"}
-plt.rcParams.update({"font.size": 8, "axes.titlesize": 8, "pdf.fonttype": 42, "axes.linewidth": 0.5})
+plt.rcParams.update({"font.size": 7, "axes.titlesize": 7, "legend.fontsize": 6.5, "pdf.fonttype": 42, "axes.linewidth": 0.5})
+W = 5.15  # text width of the journal template (inches)
 
 
 def read_shp(zname):
@@ -73,8 +74,9 @@ def haversine_min(lat, lon, c):
     return d.min(1), d.argmin(1)
 
 
-def voronoi_edges(ax, c, extent, n=700):
-    """Draw boundaries of the nearest-facility regions (great-circle distance)."""
+def voronoi_edges(ax, c, extent, n=700, pts=None, reach=None):
+    """Draw boundaries of the nearest-facility regions (great-circle distance), only within
+    ``reach`` degrees of a block group so that the lines stay inside the populated region."""
     lon = np.linspace(extent[0], extent[1], n)
     lat = np.linspace(extent[2], extent[3], n)
     LON, LAT = np.meshgrid(lon, lat)
@@ -83,12 +85,17 @@ def voronoi_edges(ax, c, extent, n=700):
     edge = np.zeros_like(lab, dtype=bool)
     edge[:, 1:] |= lab[:, 1:] != lab[:, :-1]
     edge[1:, :] |= lab[1:, :] != lab[:-1, :]
+    if pts is not None and reach is not None:
+        from scipy.spatial import cKDTree
+
+        dist, _ = cKDTree(pts).query(np.c_[LON.ravel(), LAT.ravel()])
+        edge &= (dist <= reach).reshape(edge.shape)
     img = np.zeros(lab.shape + (4,))
     img[edge] = (0.3, 0.3, 0.3, 0.55)
     ax.imshow(img, extent=extent, origin="lower", interpolation="nearest", zorder=3, aspect="auto")
 
 
-def region_panel(ax, pts, run, extent, aspect, dot=1.0, roads=None, outline=None, edges=True):
+def region_panel(ax, pts, run, extent, aspect, dot=1.0, roads=None, outline=None, edges=True, reach=None):
     lat, lon, pop, delta = pts.T
     c = np.array(run["centers_latlon"])
     dist, _ = haversine_min(lat, lon, c)
@@ -104,7 +111,7 @@ def region_panel(ax, pts, run, extent, aspect, dot=1.0, roads=None, outline=None
                     linewidths=0, zorder=2, rasterized=True, alpha=0.85)
     ax.scatter(lon[order][~ok], lat[order][~ok], c=ORANGE, s=dot * 1.6, linewidths=0, zorder=2.5, rasterized=True)
     if edges:
-        voronoi_edges(ax, c, extent)
+        voronoi_edges(ax, c, extent, pts=np.c_[lon, lat], reach=reach)
     ax.scatter(c[:, 1], c[:, 0], marker="*", s=70, color=INK, edgecolors="white", linewidths=0.7, zorder=5)
     ax.set_xlim(extent[:2])
     ax.set_ylim(extent[2:])
@@ -114,18 +121,18 @@ def region_panel(ax, pts, run, extent, aspect, dot=1.0, roads=None, outline=None
     for sp in ax.spines.values():
         sp.set_color(MUTED)
     ax.set_title(f"{LABEL[run['method']]}\n$\\alpha={run['max_ratio']:.2f}$\n"
-                 f"{100 * run['pop_violating']:.1f}% of population unfair", linespacing=1.4, fontsize=7.5)
+                 f"{100 * run['pop_violating']:.1f}% not served fairly", linespacing=1.35, fontsize=6.5)
     return sc
 
 
 def colorbar_legend(fig, sc, axes):
     cb = fig.colorbar(sc, ax=axes, shrink=0.6, pad=0.01, aspect=30)
-    cb.set_label(r"ratio $d(\mathbf{x},C)/\delta(\mathbf{x})$", fontsize=7)
+    cb.set_label(r"ratio $r_i=d(\mathbf{x}_i,C)/\delta_i$", fontsize=6.5)
     cb.outline.set_linewidth(0.4)
-    h = [plt.Line2D([], [], marker="o", ls="", color=ORANGE, ms=4, label=r"not served fairly ($d>\delta$)"),
+    h = [plt.Line2D([], [], marker="o", ls="", color=ORANGE, ms=4, label=r"not served fairly ($r_i>1$)"),
          plt.Line2D([], [], marker="*", ls="", color=INK, ms=8, label="facility (centre)"),
          plt.Line2D([], [], color="#404040", lw=0.8, label="service-area boundary")]
-    fig.legend(handles=h, loc="lower center", ncol=3, frameon=False, fontsize=7, bbox_to_anchor=(0.45, 0.10))
+    fig.legend(handles=h, loc="lower center", ncol=3, frameon=False, fontsize=6.5, bbox_to_anchor=(0.45, 0.13))
 
 
 # ---------------------------------------------------------------------------- Los Angeles County
@@ -142,10 +149,10 @@ def la_county(methods=("wkmeans", "fmm_lam10.0", "fmm_lam10_bal10.0"), seed=0):
     layers = [(by["S1400"], "#dcdbd6", 0.1), (by["S1200"], "#b9b8b2", 0.3), (by["S1100"], "#7d7c77", 0.6)]
     extent = (-118.95, -117.64, 33.70, 34.83)
     aspect = 1 / np.cos(np.radians(34.2))
-    fig, axes = plt.subplots(1, len(methods), figsize=(7.4, 3.6))
-    fig.subplots_adjust(wspace=0.12, bottom=0.12)
+    fig, axes = plt.subplots(1, len(methods), figsize=(W, 2.75))
+    fig.subplots_adjust(wspace=0.08, bottom=0.14)
     for ax, m in zip(axes, methods):
-        sc = region_panel(ax, pts, rr[(m, seed)], extent, aspect, dot=0.35, roads=layers)
+        sc = region_panel(ax, pts, rr[(m, seed)], extent, aspect, dot=0.18, roads=layers, reach=0.03)
     colorbar_legend(fig, sc, axes)
     fig.savefig(FIG / "map_la_county.pdf", bbox_inches="tight", dpi=400)
     plt.close(fig)
@@ -161,7 +168,7 @@ def la_access_change(base="wkmeans", new="fmm_lam10.0", seed=0):
     roads = read_shp("tl_2020_06037_roads.zip")
     main = [sh for rec, sh in zip(roads.records(), roads.shapes()) if rec["MTFCC"] in ("S1100", "S1200")]
     extent = (-118.95, -117.64, 33.70, 34.83)
-    fig, axes = plt.subplots(1, 2, figsize=(7.4, 3.4), gridspec_kw={"width_ratios": [1.25, 1]})
+    fig, axes = plt.subplots(1, 2, figsize=(W, 2.7), gridspec_kw={"width_ratios": [1.2, 1]})
     ax = axes[0]
     draw_shapes(ax, main, color=ROAD, linewidth=0.3, zorder=1)
     change = d1 - d0
@@ -174,16 +181,16 @@ def la_access_change(base="wkmeans", new="fmm_lam10.0", seed=0):
     hb.set_norm(TwoSlopeNorm(vcenter=0, vmin=-lim, vmax=lim))
     c0 = np.array(rr[(base, seed)]["centers_latlon"])
     c1 = np.array(rr[(new, seed)]["centers_latlon"])
-    ax.scatter(c0[:, 1], c0[:, 0], marker="o", s=22, facecolors="none", edgecolors=INK, linewidths=0.8, zorder=4,
+    ax.scatter(c0[:, 1], c0[:, 0], marker="o", s=30, facecolors="none", edgecolors=MUTED, linewidths=0.9, zorder=4,
                label=LABEL[base])
-    ax.scatter(c1[:, 1], c1[:, 0], marker="*", s=60, color=INK, edgecolors="white", linewidths=0.6, zorder=5,
+    ax.scatter(c1[:, 1], c1[:, 0], marker="*", s=45, color=INK, edgecolors="white", linewidths=0.6, zorder=5,
                label=LABEL[new])
     ax.set_xlim(extent[:2]); ax.set_ylim(extent[2:]); ax.set_aspect(1 / np.cos(np.radians(34.2)))
     ax.set_xticks([]); ax.set_yticks([])
     ax.legend(loc="lower left", frameon=False, fontsize=6.5)
     cb = fig.colorbar(hb, ax=ax, shrink=0.7, pad=0.01)
-    cb.set_label("change in distance to nearest facility (km)\nnegative = closer under FMM", fontsize=7)
-    ax.set_title(f"Change of access: {LABEL[new]} vs. {LABEL[base]}")
+    cb.set_label("change in distance to the nearest\nfacility (km); negative = closer", fontsize=6.5)
+    ax.set_title(f"Change of access, {LABEL[new]}\nversus {LABEL[base]}", linespacing=1.3)
     # right: distribution of ratio vs. distance, population weighted
     ax = axes[1]
     for d, col, lab in [(d0, MUTED, LABEL[base]), (d1, BLUE, LABEL[new])]:
@@ -193,7 +200,7 @@ def la_access_change(base="wkmeans", new="fmm_lam10.0", seed=0):
         ax.plot(r[o], 1 - cum, color=col, label=lab, lw=1.5)
     ax.axvline(1, color=MUTED, ls=":", lw=0.8)
     ax.set_yscale("log")
-    ax.set_xlabel(r"ratio $d(\mathbf{x},C)/\delta(\mathbf{x})$")
+    ax.set_xlabel(r"ratio $r_i=d(\mathbf{x}_i,C)/\delta_i$")
     ax.set_ylabel("share of population with larger ratio")
     ax.spines[["top", "right"]].set_visible(False)
     ax.grid(color="#e4e3df", lw=0.5)
@@ -216,9 +223,11 @@ def state_maps(methods=("wkmeans", "fmm_lam10.0", "fmm_lam10_bal10.0"), seed=0):
         if not all((m, seed) in rr for m in methods):
             continue
         outl = [sh for rec, sh in zip(counties.records(), counties.shapes()) if rec["STATEFP"] == fips]
-        fig, axes = plt.subplots(1, len(methods), figsize=(7.4, 3.2))
+        fig, axes = plt.subplots(1, len(methods), figsize=(W, 2.6))
+        fig.subplots_adjust(wspace=0.08, bottom=0.14)
         for ax, m in zip(axes, methods):
-            sc = region_panel(ax, pts, rr[(m, seed)], extent, 1 / np.cos(np.radians(lat0)), dot=0.8, outline=outl)
+            sc = region_panel(ax, pts, rr[(m, seed)], extent, 1 / np.cos(np.radians(lat0)), dot=0.4, outline=outl,
+                              reach=0.25)
         colorbar_legend(fig, sc, axes)
         fig.savefig(FIG / f"map_{region}.pdf", bbox_inches="tight", dpi=400)
         plt.close(fig)
@@ -234,7 +243,7 @@ def us_map(methods=("wkmeans", "fmm_lam10.0"), seed=0):
     states = read_shp("cb_2020_us_state_20m.zip")
     outl = [sh for rec, sh in zip(states.records(), states.shapes()) if rec["STATEFP"] not in ("02", "15", "72")]
     extent = (-125.0, -66.5, 24.3, 49.6)
-    fig, axes = plt.subplots(len(methods), 1, figsize=(7.0, 4.2 * len(methods)))
+    fig, axes = plt.subplots(len(methods), 1, figsize=(W, 3.1 * len(methods)))
     for ax, m in zip(np.atleast_1d(axes), methods):
         sc = region_panel(ax, pts, rr[(m, seed)], extent, 1 / np.cos(np.radians(38)), dot=0.3, outline=outl,
                           edges=False)
@@ -248,12 +257,12 @@ def gowalla_world():
     g = json.loads((RES / "gowalla_map.json").read_text())
     ll = np.array(g["latlon"])
     world = read_shp("ne_110m_admin_0_countries.zip")
-    fig, axes = plt.subplots(1, 2, figsize=(7.4, 2.5))
+    fig, axes = plt.subplots(1, 2, figsize=(W, 2.05))
     for ax, (m, lab) in zip(axes, [("kmeans", "$k$-means"), ("fmm_lam10", r"FMM, $\lambda=10$")]):
         draw_shapes(ax, world.shapes(), color=ROAD, linewidth=0.4, zorder=1)
         rec = g["methods"][m]
         ratio = np.array(rec["ratio"])
-        ax.hexbin(ll[:, 1], ll[:, 0], C=ratio, reduce_C_function=np.max, gridsize=(90, 30),
+        hb = ax.hexbin(ll[:, 1], ll[:, 0], C=ratio, reduce_C_function=np.max, gridsize=(90, 30),
                   extent=(-180, 180, -60, 80), cmap=SEQ, vmin=0, vmax=2, zorder=2, linewidths=0, mincnt=1)
         bad = ratio > 1
         ax.scatter(ll[bad, 1], ll[bad, 0], s=0.4, color=ORANGE, zorder=3, rasterized=True, linewidths=0)
@@ -263,8 +272,11 @@ def gowalla_world():
         ax.set_xticks([]); ax.set_yticks([])
         for sp in ax.spines.values():
             sp.set_color(MUTED)
-        ax.set_title(f"{lab}: $\\alpha={rec['max_ratio']:.2f}$, {100 * rec['frac_violating']:.1f}% of check-ins outside $\\delta$")
-    fig.tight_layout()
+        ax.set_title(f"{lab}: $\\alpha={rec['max_ratio']:.2f}$, {100 * rec['frac_violating']:.1f}% of check-ins not served fairly",
+                     fontsize=6.5)
+    fig.tight_layout(rect=(0, 0, 0.92, 1))
+    cb = fig.colorbar(hb, ax=axes, shrink=0.8, pad=0.01)
+    cb.set_label(r"largest $r_i$ in hexagon", fontsize=6.5)
     fig.savefig(FIG / "map_gowalla.pdf", bbox_inches="tight", dpi=400)
     plt.close(fig)
 

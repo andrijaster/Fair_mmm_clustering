@@ -156,8 +156,12 @@ class FMMConfig:
     batch: int = 0  # 0 = full batch
     hard_buffer: int = 0  # size of the hard-point memory (stochastic only)
     eval_every: int = 50
+    select_best: bool = True  # return the best iterate under the exact objective (else the last one)
+    hard: bool = False  # ablation: no smoothing, (sub)gradient of the exact max-min objective
+    init: str = "kmeans"  # "kmeans" (best of 10), "kmeans1" (single run) or "random" (k data points)
     seed: int = 0
     log: list = field(default_factory=list)
+    time_init: float = 0.0
 
 
 def _schedule(a, b, t):
@@ -169,7 +173,21 @@ def fmm(x, delta, k, cfg: FMMConfig, init=None):
     the *hard* objective cost/n + lam * max_ratio (evaluated every eval_every)."""
     torch.manual_seed(cfg.seed)
     n = x.shape[0]
-    c0 = kmeans(x, k, cfg.seed) if init is None else torch.as_tensor(init, device=x.device, dtype=x.dtype)
+    t_init = time.time()
+    if init is not None:
+        c0 = torch.as_tensor(init, device=x.device, dtype=x.dtype)
+    elif cfg.init == "kmeans":
+        c0 = kmeans(x, k, cfg.seed)
+    elif cfg.init == "kmeans1":
+        c0 = kmeans(x, k, cfg.seed, n_init=1)
+    elif cfg.init == "random":
+        g = torch.Generator().manual_seed(cfg.seed)
+        c0 = x[torch.randperm(n, generator=g)[:k].to(x.device)].clone()
+    else:
+        raise ValueError(cfg.init)
+    if x.is_cuda:
+        torch.cuda.synchronize()
+    cfg.time_init = time.time() - t_init
     c = c0.clone().requires_grad_(True)
     opt = torch.optim.Adam([c], lr=cfg.lr)
     pure = math.isinf(cfg.lam)
@@ -191,7 +209,12 @@ def fmm(x, delta, k, cfg: FMMConfig, init=None):
         eps = _schedule(cfg.eps0, cfg.eps1, t)
         beta = _schedule(cfg.beta0, cfg.beta1, t)
         opt.zero_grad(set_to_none=True)
-        if cfg.batch <= 0 or cfg.batch >= n:
+        if cfg.hard:  # ablation: exact objective, autograd gives a subgradient
+            d = pairwise_dist(x, c)
+            m = d.min(1).values
+            fair = (m / delta).max()
+            cost = m.pow(2).mean()
+        elif cfg.batch <= 0 or cfg.batch >= n:
             s, r = soft_ratio(x, c, delta, beta)
             fair = log_mean_exp(s, eps)
             cost = r.mul(delta[:, None]).min(1).values.pow(2).mean()
@@ -224,18 +247,45 @@ def fmm(x, delta, k, cfg: FMMConfig, init=None):
             cfg.log.append((it + 1, time.time() - t0, hc, hm, val))
             if val < best_val:
                 best_val, best_c = val, c.detach().clone()
-    return best_c
+    return best_c if cfg.select_best else c.detach()
 
 
-def tilted_kmeans(x, k, t_tilt, iters=2000, lr=0.02, seed=0):
+def tilted_kmeans(x, k, t_tilt, iters=2000, lr=0.02, seed=0, select_best=False, eval_every=50):
     """Re-implementation of tilted k-means (Zhu et al. 2024) by gradient descent:
-    min_C (1/t) log mean_x exp(t * min_j ||x - c_j||^2)."""
+    min_C (1/t) log mean_x exp(t * min_j ||x - c_j||^2). With select_best, the iterate with the
+    lowest value of this (tilted) objective is returned, checked every eval_every iterations."""
     c = kmeans(x, k, seed).clone().requires_grad_(True)
     opt = torch.optim.Adam([c], lr=lr)
-    for _ in range(iters):
+
+    def obj(cc):
+        with torch.no_grad():
+            m = pairwise_dist(x, cc).min(1).values.pow(2)
+            return ((torch.logsumexp(t_tilt * m, 0) - math.log(x.shape[0])) / t_tilt).item()
+
+    best_c, best_v = c.detach().clone(), obj(c)
+    for it in range(iters):
         opt.zero_grad(set_to_none=True)
         m = pairwise_dist(x, c).min(1).values.pow(2)
         loss = (torch.logsumexp(t_tilt * m, 0) - math.log(x.shape[0])) / t_tilt
         loss.backward()
         opt.step()
-    return c.detach()
+        if select_best and ((it + 1) % eval_every == 0 or it == iters - 1):
+            v = obj(c)
+            if v < best_v:
+                best_v, best_c = v, c.detach().clone()
+    return best_c if select_best else c.detach()
+
+
+@torch.no_grad()
+def ratio_greedy(x, delta, k):
+    """Farthest-first traversal in the ratio metric (a priority k-center heuristic in the
+    spirit of Gonzalez 1985 / Plesnik 1987): start at the point with the smallest radius, then
+    repeatedly open a centre at the point with the largest ratio d(x_i, C) / delta_i."""
+    first = int(delta.argmin())
+    c = [x[first]]
+    m = pairwise_dist(x, x[first : first + 1]).squeeze(1)
+    for _ in range(1, k):
+        i = int((m / delta).argmax())
+        c.append(x[i])
+        m = torch.minimum(m, pairwise_dist(x, x[i : i + 1]).squeeze(1))
+    return torch.stack(c)
