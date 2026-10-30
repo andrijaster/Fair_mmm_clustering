@@ -49,6 +49,10 @@ ap.add_argument("--delta", default="sample", choices=["sample", "exact"],
                 help="sample: estimator of Bateni et al.; exact: ceil(n/k)-th nearest neighbour")
 ap.add_argument("--no_select", action="store_true", help="return the last iterate (no best-iterate check)")
 ap.add_argument("--nosmooth", action="store_true", help="ablation: subgradient of the exact objective")
+ap.add_argument("--smoothing", default="lse", choices=["lse", "sparsemax", "entmax15", "bump"],
+                help="smooth max/min used in the surrogate")
+ap.add_argument("--match_error", action="store_true",
+                help="regularised max: temperatures scaled to the error bound of log-sum-exp")
 ap.add_argument("--init", default="kmeans", choices=["kmeans", "kmeans1", "random"])
 ap.add_argument("--threads", type=int, default=0, help="torch CPU threads (0 = default)")
 ap.add_argument("--radius_seed", type=int, default=100, help="seed of the 500-point sample of the radii")
@@ -95,7 +99,8 @@ if a.method == "kmeans":
 elif a.method == "fmm":
     cfg = fmm.FMMConfig(lam=a.lam, iters=a.iters, lr=a.lr, batch=a.batch, hard_buffer=a.hard,
                         eps0=a.eps0, eps1=a.eps1, beta0=a.beta0, beta1=a.beta1, seed=a.seed,
-                        eval_every=50, select_best=not a.no_select, hard=a.nosmooth, init=a.init)
+                        eval_every=50, select_best=not a.no_select, hard=a.nosmooth, init=a.init,
+                        smoothing=a.smoothing, match_error=a.match_error)
     if a.batch and not a.log_curve:  # best-iterate tracking needs full passes: off for stochastic runs
         cfg.eval_every = 10 ** 9
     c = fmm.fmm(x, delta, a.k, cfg)

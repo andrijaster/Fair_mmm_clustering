@@ -81,7 +81,28 @@ model.report_             # cost, max_ratio, frac_unfair, mean_ratio, norm_entro
 | `lr` | learning rate; `"auto"` = 0.02 × mean coordinate std | `"auto"` |
 | `temperatures` | start and end of the geometric temperature schedule | (2, 200) |
 | `batch_size`, `memory_size` | mini-batch size and size of the hard-point memory | `None`, 0 |
+| `smoothing` | smooth max/min of the surrogate: `"lse"` (log-sum-exp), `"sparsemax"`, `"entmax15"` or `"bump"` (BumpMax) | `"lse"` |
+| `match_error` | regularised maxima: scale the temperatures to the error bound of log-sum-exp | `False` |
 | `device` | `"auto"`, `"cpu"` or `"cuda"` | `"auto"` |
+
+### Smooth maxima, including BumpMax
+
+`fairmmm.reg_max(x, mu, kind, dim)` is a regularised maximum: a smooth upper approximation of
+`x.max(dim)` whose gradient is a probability vector (`kind` = `"sparsemax"`, `"entmax15"` or
+`"bump"`; `reg_min` is the corresponding minimum). Unlike log-sum-exp, whose error grows as
+`mu * ln(n)`, its error is at most `0.5 mu`, `1.33 mu` and `0.596 mu` for any number of entries,
+and it equals the maximum exactly once the largest entry leads the second by `mu` (`2 mu` for
+`entmax15`). BumpMax is built from the flat function `exp(1 - 1/u)` and is the only one of the
+three that is infinitely differentiable (paper, Section 4.3).
+
+```python
+import torch
+from fairmmm import reg_max
+
+x = torch.randn(1000, requires_grad=True)
+v = reg_max(x, 0.1, "bump")     # within 0.06 of x.max()
+v.backward()                     # x.grad: sparse weights summing to one
+```
 
 ### Radii and evaluation without fitting
 
@@ -119,6 +140,7 @@ git -C gr sparse-checkout init --cone && git -C gr sparse-checkout set individua
 | run everything (GPU and CPU queues) | `bash run_all.sh`, `bash run_gpu.sh`, `bash run_exact.sh` |
 | added baselines, tuned TKM, LSPP parameter grid, ablations, radius samples, exclusive timings | `bash run_revision.sh` |
 | census case study | `python case_census.py` |
+| comparison of smooth maxima (log-sum-exp, sparsemax, 1.5-entmax, BumpMax) | `bash run_smoothing.sh`, then `python analyze_smoothing.py results/smoothing.jsonl ../paper/tables/smoothing_rows.tex` and `python smoothing_figure.py` |
 | optimality gap on small instances (exact MIQCP with SCIP; needs `pip install pyscipopt`) | `python exact_small_samples.py`, `python exact_small.py samples.npz exact_small.jsonl --n 20` (and `--n 30`), then `python exact_small.py exact_small.jsonl ../paper/tables/exact_gap_rows.tex --table` |
 | tables and figures | `python analyze.py`, `python make_maps.py`, `python toy_figure.py` |
 | interactive maps | `python make_interactive.py` |

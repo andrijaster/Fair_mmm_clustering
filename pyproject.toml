@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fairmmm"
-version = "0.1.0"
+version = "0.2.0"
 description = "Individually fair clustering by smooth min-max-min optimisation (FMM)"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -22,7 +22,7 @@ classifiers = [
 dependencies = ["numpy>=1.21", "torch>=1.13"]
 
 [project.optional-dependencies]
-experiments = ["pandas", "scikit-learn", "scipy", "matplotlib", "absl-py", "pyshp"]
+experiments = ["pandas", "scikit-learn", "scipy", "matplotlib", "absl-py", "pyshp", "pyscipopt"]
 test = ["pytest"]
 
 [tool.setuptools.packages.find]

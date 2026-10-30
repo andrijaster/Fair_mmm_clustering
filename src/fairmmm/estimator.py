@@ -92,6 +92,10 @@ class FairMMM:
     temperatures : (start, end) of the geometric temperature schedule (default (2, 200)).
     batch_size : int or None; mini-batch size (None = full batch).
     memory_size : int, size of the hard-point memory used with mini-batches.
+    smoothing : "lse" (log-sum-exp, default), "sparsemax", "entmax15" or "bump"; the smooth
+        maximum and minimum of the surrogate (the regularised maxima need the full batch and no weights).
+    match_error : bool, for the regularised maxima: scale the temperatures so that their error bound
+        equals that of log-sum-exp (default False: same temperatures, i.e. the same smoothness).
     device : "auto", "cpu" or "cuda".
     random_state : int.
 
@@ -106,7 +110,8 @@ class FairMMM:
     """
 
     def __init__(self, n_clusters=8, lam=10.0, radii="sample", weights=None, balance=0.0, n_iter=2000, lr="auto",
-                 temperatures=(2.0, 200.0), batch_size=None, memory_size=0, device="auto", random_state=0):
+                 temperatures=(2.0, 200.0), batch_size=None, memory_size=0, smoothing="lse", match_error=False,
+                 device="auto", random_state=0):
         self.n_clusters = n_clusters
         self.lam = lam
         self.radii = radii
@@ -117,6 +122,8 @@ class FairMMM:
         self.temperatures = temperatures
         self.batch_size = batch_size
         self.memory_size = memory_size
+        self.smoothing = smoothing
+        self.match_error = match_error
         self.device = device
         self.random_state = random_state
 
@@ -144,6 +151,10 @@ class FairMMM:
             warnings.warn("some fairness radii are zero (duplicated points); they are clamped at 1e-6")
             radii = np.maximum(radii, 1e-6)
         lr = 0.02 * float(X.std(0).mean()) if self.lr == "auto" else float(self.lr)
+        if self.smoothing not in ("lse", "sparsemax", "entmax15", "bump"):
+            raise ValueError("smoothing must be 'lse', 'sparsemax', 'entmax15' or 'bump'")
+        if self.smoothing != "lse" and (weighted or self.batch_size):
+            raise ValueError("regularised maxima are implemented for the unweighted full-batch objective only")
         eps = tuple(float(t) for t in self.temperatures)
 
         if weighted:
@@ -157,7 +168,8 @@ class FairMMM:
             x = _as_tensor(X, dev, torch.float32)
             cfg = _core.FMMConfig(lam=self.lam, eps0=eps[0], eps1=eps[1], beta0=eps[0], beta1=eps[1], iters=self.n_iter,
                                   lr=lr, batch=int(self.batch_size or 0), hard_buffer=int(self.memory_size),
-                                  seed=self.random_state)
+                                  seed=self.random_state, smoothing=self.smoothing,
+                                  match_error=self.match_error)
             if self.batch_size:
                 cfg.eval_every = 10 ** 9  # best-iterate tracking needs full passes
             c = _core.fmm(x, _as_tensor(radii, dev, torch.float32), k, cfg)

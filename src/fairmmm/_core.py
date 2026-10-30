@@ -18,6 +18,8 @@ from dataclasses import dataclass, field
 
 import torch
 
+from ._smooth import KINDS, reg_max, reg_min
+
 
 # ----------------------------------------------------------------------------
 # thresholds and evaluation
@@ -158,6 +160,8 @@ class FMMConfig:
     eval_every: int = 50
     select_best: bool = True  # return the best iterate under the exact objective (else the last one)
     hard: bool = False  # ablation: no smoothing, (sub)gradient of the exact max-min objective
+    smoothing: str = "lse"  # "lse" (log-sum-exp), or a regularised max: "sparsemax", "entmax15", "bump"
+    match_error: bool = False  # regularised max: temperatures giving the error bound of log-sum-exp
     init: str = "kmeans"  # "kmeans" (best of 10), "kmeans1" (single run) or "random" (k data points)
     seed: int = 0
     log: list = field(default_factory=list)
@@ -214,6 +218,18 @@ def fmm(x, delta, k, cfg: FMMConfig, init=None):
             m = d.min(1).values
             fair = (m / delta).max()
             cost = m.pow(2).mean()
+        elif cfg.smoothing != "lse" and (cfg.batch > 0 and cfg.batch < n):
+            raise ValueError("regularised maxima are implemented for the full batch only")
+        elif cfg.smoothing != "lse":  # regularised max and min with temperatures 1/eps and 1/beta (full batch)
+            # same temperatures as log-sum-exp (same smoothness), or scaled so that the error bounds
+            # psi(1) agree with the log-sum-exp bounds ln n / eps and ln k / beta
+            mo, mi = 1.0 / eps, 1.0 / beta
+            if cfg.match_error:
+                cst = KINDS[cfg.smoothing][0]
+                mo, mi = mo * math.log(n) / cst, mi * math.log(k) / cst
+            r = pairwise_dist(x, c) / delta[:, None]
+            fair = reg_max(reg_min(r, mi, cfg.smoothing, dim=1), mo, cfg.smoothing, dim=0)
+            cost = r.mul(delta[:, None]).min(1).values.pow(2).mean()
         elif cfg.batch <= 0 or cfg.batch >= n:
             s, r = soft_ratio(x, c, delta, beta)
             fair = log_mean_exp(s, eps)

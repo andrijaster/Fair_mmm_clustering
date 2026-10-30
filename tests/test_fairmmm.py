@@ -49,3 +49,29 @@ def test_weights_and_balance(blobs):
     w = np.random.default_rng(1).integers(1, 100, size=len(blobs)).astype(float)
     m = FairMMM(5, lam=10.0, weights=w, balance=10.0, n_iter=200, device="cpu").fit(blobs)
     assert m.report_["norm_entropy"] > 0.5
+
+
+@pytest.mark.parametrize("kind,bound,lead", [("sparsemax", 0.5, 1.0), ("entmax15", 4 / 3, 2.0), ("bump", 0.5964, 1.0)])
+def test_regularised_max(kind, bound, lead):
+    import torch
+
+    from fairmmm._smooth import reg_max, reg_weights
+
+    torch.manual_seed(0)
+    for n in [2, 50, 5000]:
+        x = torch.randn(n, dtype=torch.float64)
+        mu = 0.3
+        err = (reg_max(x, mu, kind, iters=80) - x.max()).item()
+        assert -1e-9 <= err <= bound * mu + 1e-9  # error independent of n
+        p = reg_weights(x, mu, kind, iters=80)
+        assert p.sum().item() == pytest.approx(1.0) and (p >= 0).all()
+        y = x.clone()
+        y[0] = x.max() + lead * mu + 1e-6  # exact once the largest entry leads by the margin
+        assert reg_max(y, mu, kind, iters=80).item() == pytest.approx(y.max().item(), abs=1e-9)
+
+
+def test_bumpmax_estimator(blobs):
+    radii = fairness_radii(blobs, 5, method="exact", device="cpu")
+    km = FairMMM(5, lam=0.0, radii=radii, n_iter=300, device="cpu").fit(blobs)
+    m = FairMMM(5, lam=math.inf, radii=radii, n_iter=300, smoothing="bump", match_error=True, device="cpu").fit(blobs)
+    assert m.max_ratio_ < km.max_ratio_

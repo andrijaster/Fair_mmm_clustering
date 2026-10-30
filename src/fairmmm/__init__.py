@@ -5,7 +5,8 @@
     >>> model.cluster_centers_, model.max_ratio_
 """
 
+from ._smooth import reg_max, reg_min
 from .estimator import FairMMM, fairness_radii, fairness_report
 
-__all__ = ["FairMMM", "fairness_radii", "fairness_report"]
-__version__ = "0.1.0"
+__all__ = ["FairMMM", "fairness_radii", "fairness_report", "reg_max", "reg_min"]
+__version__ = "0.2.0"
