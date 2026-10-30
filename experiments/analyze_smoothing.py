@@ -23,8 +23,7 @@ def main(src, out):
             continue
         key = (r["data"], float(r["lam"]), r.get("smoothing", "lse"), bool(r.get("match_error")) and r.get("smoothing") != "lse")
         by[key].append(r)
-    km = {}  # k-means cost from the LSE runs' reference: use the cost ratio to the LSE lambda=1 run is not needed;
-    # costs are reported relative to the k-means cost stored with the main results if available
+    km = {}  # costs are reported relative to the mean k-means cost of the main results
     try:
         for line in open(src.replace("smoothing.jsonl", "main_gpu.jsonl")):
             r = json.loads(line)
@@ -49,18 +48,22 @@ def main(src, out):
                 times[(sm, me)].append(np.mean([r["time"] for r in rs]) / np.mean([r["time"] for r in base]) if base else np.nan)
                 if base and sm != "lse":
                     ab = np.mean([r["max_ratio"] for r in base])
+                    sd = max(np.std([r["max_ratio"] for r in base]), np.std([r["max_ratio"] for r in rs]))
                     cb = np.mean([r["kmeans_cost"] for r in base])
                     cs = np.mean([r["kmeans_cost"] for r in rs])
                     w = wins[(sm, me, lam)]
                     w[0] += a < ab - 1e-3
                     w[1] += 1
+                    w.append(f"{d}: {a - ab:+.3f} (sd {sd:.3f}, cost {cs / cb:.2f}x{', dominates' if a < ab and cs <= cb else ''})")
             lam_tex = "\\infty" if lam == float("inf") else f"{lam:g}"
             name = f"\\multirow{{3}}{{*}}{{\\textsf{{{d}}}}}" if i == 0 else ""
             rows.append(f"{name} & ${lam_tex}$ & " + " & ".join(cells) + " \\\\")
         rows.append("\\midrule" if d != DATASETS[-1] else "")
     open(out, "w").write("\n".join(r for r in rows if r) + "\n")
-    for (sm, me, lam), (w, n) in sorted(wins.items()):
+    for (sm, me, lam), (w, n, *detail) in sorted(wins.items()):
         print(f"{sm:9s} {'matched' if me else 'same   '} lam={lam:g}: lower alpha than LSE on {w}/{n}")
+        if me and (lam == float("inf") or sm == "bump"):
+            print("    " + "; ".join(detail))
     for (sm, me), t in times.items():
         print(f"time ratio to LSE {sm} {'matched' if me else 'same'}: median {np.nanmedian(t):.1f}")
 
