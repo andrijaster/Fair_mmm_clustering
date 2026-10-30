@@ -20,7 +20,7 @@ sparsemax (Martins & Astudillo 2016) and 1.5-entmax (Peters et al. 2019); bump u
 the flat function exp(1 - 1/u), so that F is infinitely differentiable and still
 equals max x exactly when the largest entry leads the second by at least mu.
 R(z) = z e^z E_1(z), evaluated with the rational approximation 5.1.56 of
-Abramowitz & Stegun (absolute error below 5e-8 for z >= 1).
+Abramowitz & Stegun (absolute error below 2e-8 for z >= 1).
 """
 
 import math
@@ -28,7 +28,7 @@ import math
 import torch
 
 E1_AT_1 = 0.21938393439552029  # exponential integral E_1(1)
-KINDS = {  # psi(1) / mu and the largest argument u at which phi(u) = 1
+KINDS = {  # psi(1) / mu and the smallest argument u at which phi(u) = 1
     "sparsemax": (0.5, 1.0),
     "entmax15": (4.0 / 3.0, 2.0),
     "bump": (math.e * E1_AT_1, 1.0),

@@ -8,7 +8,7 @@ Objective (variant (b) of the paper):
     s_beta(x,C) = -(1/beta) log( (1/k) sum_j exp(-beta * ||x - c_j|| / delta(x)) )
 
 Phi_eps is the Tsoukalas-Rustem smoothing of max_x min_j ||x-c_j||/delta(x)
-(log-mean-exp instead of log-sum-exp; same minimizer, Phi <= true max).
+(log-mean-exp instead of log-sum-exp; same minimizer, Phi <= true max + ln(k)/beta).
 lam = inf means the pure min-max-min problem (cost term dropped).
 """
 
