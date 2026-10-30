@@ -119,6 +119,7 @@ git -C gr sparse-checkout init --cone && git -C gr sparse-checkout set individua
 | run everything (GPU and CPU queues) | `bash run_all.sh`, `bash run_gpu.sh`, `bash run_exact.sh` |
 | added baselines, tuned TKM, LSPP parameter grid, ablations, radius samples, exclusive timings | `bash run_revision.sh` |
 | census case study | `python case_census.py` |
+| optimality gap on small instances (exact MIQCP with SCIP; needs `pip install pyscipopt`) | `python exact_small_samples.py`, `python exact_small.py samples.npz exact_small.jsonl --n 20` (and `--n 30`), then `python exact_small.py exact_small.jsonl ../paper/tables/exact_gap_rows.tex --table` |
 | tables and figures | `python analyze.py`, `python make_maps.py`, `python toy_figure.py` |
 | interactive maps | `python make_interactive.py` |
 
