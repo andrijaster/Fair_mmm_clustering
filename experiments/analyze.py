@@ -188,18 +188,22 @@ def full_grid(by):
 
 
 # ---------------------------------------------------------------------------- fronts
-def front_points(by, d, meth, front_rows=None):
+def front_points(by, d, meth, front_rows=None, key="max_ratio"):
+    """(fairness, cost / k-means) of each parameter setting of a method; key = max_ratio (alpha) or
+    frac_violating (share of points with r_i > 1)."""
     km = mean_of(by[(d, ("kmeans", None))], "kmeans_cost")
     if meth == "fmm":
         keys = sorted([k for k in by if k[0] == d and k[1][0] == "fmm"], key=lambda k: k[1][1])
-        return [(mean_of(by[k], "max_ratio"), mean_of(by[k], "kmeans_cost") / km) for k in keys]
+        return [(mean_of(by[k], key), mean_of(by[k], "kmeans_cost") / km) for k in keys]
     if meth == "tkm":
         keys = [k for k in by if k[0] == d and k[1][0] == "tkm"]
-        return [(mean_of(by[k], "max_ratio"), mean_of(by[k], "kmeans_cost") / km) for k in keys]
+        return [(mean_of(by[k], key), mean_of(by[k], "kmeans_cost") / km) for k in keys]
     if meth == "lspp":
         g = group([r for r in front_rows if r["data"] == d and "kmeans_cost" in r], "coeff_anchor", "coeff_search")
-        return [(mean_of(rs, "max_ratio"), mean_of(rs, "kmeans_cost") / km) for rs in g.values()]
-    raise ValueError(meth)
+        return [(mean_of(rs, key), mean_of(rs, "kmeans_cost") / km) for rs in g.values()]
+    if (d, (meth, None)) in by:  # single-setting methods
+        return [(mean_of(by[(d, (meth, None))], key), mean_of(by[(d, (meth, None))], "kmeans_cost") / km)]
+    return []
 
 
 def hypervolume(points, ref):
@@ -215,47 +219,54 @@ def hypervolume(points, ref):
     return hv
 
 
+HV_METHODS = ["kmeans", "lspp1", "lspp", "tkm", "wkm_delta", "ratio_greedy", "fmm"]
+
+
+def hv_points(by, d, meth, front_rows, key="max_ratio"):
+    if meth == "lspp1":
+        return front_points(by, d, "lspp_default", key=key)
+    if meth == "lspp":
+        return front_points(by, d, "lspp", front_rows, key) if any(r["data"] == d for r in front_rows) else []
+    return front_points(by, d, meth, key=key)
+
+
 def fronts(by, front_rows):
-    """Hypervolume of the fronts (alpha, cost / k-means) per dataset; reference point = 1.1 x the
-    worst alpha of k-means and LSPP, cost ratio 2.5."""
+    """Hypervolume of the fronts (fairness, cost / k-means) per dataset; reference point = fa x the
+    worst fairness value of k-means and default LSPP, cost ratio cc (default fa = 1.1, cc = 2.5)."""
+    by = dict(by)
+    for d in DATASETS:  # default LSPP as a single-setting method
+        if (d, ("lspp", None)) in by:
+            by[(d, ("lspp_default", None))] = by[(d, ("lspp", None))]
+
+    def ref_of(d, key, fa, cc):
+        base = [mean_of(by[(d, ("kmeans", None))], key)]
+        if (d, ("lspp", None)) in by:
+            base.append(mean_of(by[(d, ("lspp", None))], key))
+        return (fa * max(base), cc)
+
     lines = []
     for d in DATASETS:
-        base = [mean_of(by[(d, ("kmeans", None))], "max_ratio")]
-        if (d, ("lspp", None)) in by:
-            base.append(mean_of(by[(d, ("lspp", None))], "max_ratio"))
-        ref = (1.1 * max(base), 2.5)
+        ref = ref_of(d, "max_ratio", 1.1, 2.5)
         cells = []
-        for meth in ["kmeans", "lspp1", "lspp", "tkm", "fmm"]:
-            if meth == "kmeans":
-                pts = [(base[0], 1.0)]
-            elif meth == "lspp1":
-                pts = ([(mean_of(by[(d, ("lspp", None))], "max_ratio"),
-                         mean_of(by[(d, ("lspp", None))], "kmeans_cost") / mean_of(by[(d, ("kmeans", None))], "kmeans_cost"))]
-                       if (d, ("lspp", None)) in by else [])
-            elif meth == "lspp":
-                pts = front_points(by, d, "lspp", front_rows) if any(r["data"] == d for r in front_rows) else []
-            else:
-                pts = front_points(by, d, meth)
+        for meth in HV_METHODS:
+            pts = hv_points(by, d, meth, front_rows)
             cells.append(f"{hypervolume(pts, ref):.3f}" if pts else "--")
         lines.append(f"\\textsf{{{d}}} & " + " & ".join(cells) + " \\\\")
     (TAB / "hv_rows.tex").write_text("\n".join(lines) + "\n")
-    # sensitivity: ratio of the FMM hypervolume to the best other front for other reference points
-    for fa, cc in [(1.05, 2.0), (1.1, 2.0), (1.1, 2.5), (1.1, 3.0), (1.2, 2.5), (1.2, 3.0)]:
-        ratios = []
-        for d in DATASETS:
-            base = [mean_of(by[(d, ("kmeans", None))], "max_ratio")]
-            if (d, ("lspp", None)) in by:
-                base.append(mean_of(by[(d, ("lspp", None))], "max_ratio"))
-            ref = (fa * max(base), cc)
-            km = mean_of(by[(d, ("kmeans", None))], "kmeans_cost")
-            others = [[(base[0], 1.0)], front_points(by, d, "tkm")]
-            if (d, ("lspp", None)) in by:
-                others.append([(base[1], mean_of(by[(d, ("lspp", None))], "kmeans_cost") / km)])
-            if any(r["data"] == d for r in front_rows):
-                others.append(front_points(by, d, "lspp", front_rows))
-            best = max(hypervolume(o, ref) for o in others)
-            ratios.append(hypervolume(front_points(by, d, "fmm"), ref) / best)
-        print(f"HV ref ({fa}, {cc}): FMM / best other min {min(ratios):.2f} max {max(ratios):.2f}")
+    # ratio of the FMM hypervolume to the best other front (all other methods), several reference points;
+    # also for the share of unfairly served points instead of alpha
+    for key in ["max_ratio", "frac_violating"]:
+        for fa, cc in [(1.05, 2.0), (1.1, 2.0), (1.1, 2.5), (1.1, 3.0), (1.2, 2.5), (1.2, 3.0)]:
+            ratios = []
+            for d in DATASETS:
+                ref = ref_of(d, key, fa, cc)
+                best = max(hypervolume(hv_points(by, d, m, front_rows, key), ref) for m in HV_METHODS if m != "fmm")
+                best_m = max((m for m in HV_METHODS if m != "fmm"),
+                             key=lambda m: hypervolume(hv_points(by, d, m, front_rows, key), ref))
+                fm = hypervolume(hv_points(by, d, "fmm", front_rows, key), ref)
+                ratios.append((fm / best if best > 0 else float("inf"), d, best_m))
+            print(f"HV[{key}] ref ({fa}, {cc}): FMM / best other min {min(r[0] for r in ratios):.2f} "
+                  f"max {max(r[0] for r in ratios):.2f} :: " + ", ".join(f"{d} {r:.2f} ({m})" for r, d, m in ratios))
     for d in DATASETS:
         pts = front_points(by, d, "lspp", front_rows) if any(r["data"] == d for r in front_rows) else []
         if pts:
