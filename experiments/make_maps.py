@@ -257,7 +257,7 @@ def gowalla_world():
     g = json.loads((RES / "gowalla_map.json").read_text())
     ll = np.array(g["latlon"])
     world = read_shp("ne_110m_admin_0_countries.zip")
-    fig, axes = plt.subplots(1, 2, figsize=(W, 2.05))
+    fig, axes = plt.subplots(1, 2, figsize=(W, 2.25), layout="constrained")
     for ax, (m, lab) in zip(axes, [("kmeans", "$k$-means"), ("fmm_lam10", r"FMM, $\lambda=10$")]):
         draw_shapes(ax, world.shapes(), color=ROAD, linewidth=0.4, zorder=1)
         rec = g["methods"][m]
@@ -272,9 +272,8 @@ def gowalla_world():
         ax.set_xticks([]); ax.set_yticks([])
         for sp in ax.spines.values():
             sp.set_color(MUTED)
-        ax.set_title(f"{lab}: $\\alpha={rec['max_ratio']:.2f}$, {100 * rec['frac_violating']:.1f}% of check-ins not served fairly",
-                     fontsize=6.5)
-    fig.tight_layout(rect=(0, 0, 0.92, 1))
+        ax.set_title(f"{lab}: $\\alpha={rec['max_ratio']:.2f}$\n{100 * rec['frac_violating']:.1f}% of check-ins not served fairly",
+                     fontsize=6.5, linespacing=1.3)
     cb = fig.colorbar(hb, ax=axes, shrink=0.8, pad=0.01)
     cb.set_label(r"largest $r_i$ in hexagon", fontsize=6.5)
     fig.savefig(FIG / "map_gowalla.pdf", bbox_inches="tight", dpi=400)

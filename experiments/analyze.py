@@ -257,7 +257,7 @@ def fronts(by, front_rows):
     # also for the share of unfairly served points instead of alpha
     for key in ["max_ratio", "frac_violating"]:
         for fa, cc in [(1.05, 2.0), (1.1, 2.0), (1.1, 2.5), (1.1, 3.0), (1.2, 2.5), (1.2, 3.0)]:
-            ratios = []
+            ratios, unions = [], []
             for d in DATASETS:
                 ref = ref_of(d, key, fa, cc)
                 best = max(hypervolume(hv_points(by, d, m, front_rows, key), ref) for m in HV_METHODS if m != "fmm")
@@ -265,8 +265,12 @@ def fronts(by, front_rows):
                              key=lambda m: hypervolume(hv_points(by, d, m, front_rows, key), ref))
                 fm = hypervolume(hv_points(by, d, "fmm", front_rows, key), ref)
                 ratios.append((fm / best if best > 0 else float("inf"), d, best_m))
+                union = hypervolume([p for m in HV_METHODS if m != "fmm" for p in hv_points(by, d, m, front_rows, key)], ref)
+                unions.append((fm / union if union > 0 else float("inf"), d))
             print(f"HV[{key}] ref ({fa}, {cc}): FMM / best other min {min(r[0] for r in ratios):.2f} "
                   f"max {max(r[0] for r in ratios):.2f} :: " + ", ".join(f"{d} {r:.2f} ({m})" for r, d, m in ratios))
+            print(f"HV-union[{key}] ref ({fa}, {cc}): FMM / union of all other fronts min {min(r[0] for r in unions):.2f} "
+                  f"max {max(r[0] for r in unions):.2f} :: " + ", ".join(f"{d} {r:.2f}" for r, d in unions))
     for d in DATASETS:
         pts = front_points(by, d, "lspp", front_rows) if any(r["data"] == d for r in front_rows) else []
         if pts:
@@ -395,6 +399,8 @@ def scale():
         ("LSPP, CPU, 1 thread", excl or rows, lambda r: r["method"] == "lspp", AQUA, "-*"),
     ]
     lines = []
+    # GPU runs do not record the initialisation time; it equals the time of the k-means row (best of ten)
+    km_gpu = group([r for r in rows if r["method"] == "kmeans"], "n_points")
     for lab, src, f, col, sty in series:
         g = group([r for r in src if f(r)], "n_points")
         if not g:
@@ -406,6 +412,8 @@ def scale():
                      markeredgewidth=0.5)
         for n in ns:
             ti = np.mean([r.get("time_init", np.nan) for r in g[n]])
+            if not np.isfinite(ti) and "GPU" in lab and lab.startswith("FMM") and n in km_gpu:
+                ti = mean_of(km_gpu[n], "time")
             lines.append(f"{lab} & {n:,} & {mean_of(g[n], 'time'):.1f} & "
                          + (f"{ti:.1f}" if np.isfinite(ti) else "--")
                          + f" & {mean_of(g[n], 'max_ratio'):.3f} \\\\")

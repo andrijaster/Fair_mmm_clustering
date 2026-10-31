@@ -34,7 +34,7 @@ for kind, (col, lab) in STYLE.items():
     axes[1].plot(t, grad, color=col, lw=1.4)
 axes[0].plot(t, x.max(1).values, color=INK, lw=0.8, ls="--", label="max")
 axes[0].set_title(r"$F_\mu(t,0)$, $\mu=1$")
-axes[1].set_title(r"$\partial F_\mu/\partial x_1$ (weight of $x_1$)")
+axes[1].set_title(r"$p^\star_1=\partial F_\mu/\partial v_1$")
 for ax in axes[:2]:
     ax.set_xlabel("$t$")
 axes[0].legend(frameon=False, fontsize=6.5, loc="upper left", handlelength=1.5)

@@ -30,7 +30,7 @@ models = [("$k$-means", FairMMM(k, lam=0.0, radii=radii, n_iter=800, device="cpu
           (r"FMM, $\lambda=\infty$", FairMMM(k, lam=math.inf, radii=radii, n_iter=800, device="cpu",
                                              random_state=1).fit(X))]
 
-fig, axes = plt.subplots(1, 2, figsize=(5.15, 2.45), sharex=True, sharey=True)
+fig, axes = plt.subplots(1, 2, figsize=(5.15, 2.45), sharex=True, sharey=True, layout="constrained")
 for ax, (title, m) in zip(axes, models):
     d = np.linalg.norm(X[:, None] - m.cluster_centers_[None], axis=2).min(1)
     r = d / radii
