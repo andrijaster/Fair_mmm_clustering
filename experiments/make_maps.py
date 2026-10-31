@@ -125,14 +125,14 @@ def region_panel(ax, pts, run, extent, aspect, dot=1.0, roads=None, outline=None
     return sc
 
 
-def colorbar_legend(fig, sc, axes):
+def colorbar_legend(fig, sc, axes, y=0.13):
     cb = fig.colorbar(sc, ax=axes, shrink=0.6, pad=0.01, aspect=30)
     cb.set_label(r"ratio $r_i=d(\mathbf{x}_i,C)/\delta_i$", fontsize=6.5)
     cb.outline.set_linewidth(0.4)
     h = [plt.Line2D([], [], marker="o", ls="", color=ORANGE, ms=4, label=r"not served fairly ($r_i>1$)"),
          plt.Line2D([], [], marker="*", ls="", color=INK, ms=8, label="facility (centre)"),
          plt.Line2D([], [], color="#404040", lw=0.8, label="service-area boundary")]
-    fig.legend(handles=h, loc="lower center", ncol=3, frameon=False, fontsize=6.5, bbox_to_anchor=(0.45, 0.13))
+    fig.legend(handles=h, loc="lower center", ncol=3, frameon=False, fontsize=6.5, bbox_to_anchor=(0.45, y))
 
 
 # ---------------------------------------------------------------------------- Los Angeles County
@@ -187,7 +187,7 @@ def la_access_change(base="wkmeans", new="fmm_lam10.0", seed=0):
                label=LABEL[new])
     ax.set_xlim(extent[:2]); ax.set_ylim(extent[2:]); ax.set_aspect(1 / np.cos(np.radians(34.2)))
     ax.set_xticks([]); ax.set_yticks([])
-    ax.legend(loc="lower left", frameon=False, fontsize=6.5)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.02), ncol=2, frameon=False, fontsize=6.5)
     cb = fig.colorbar(hb, ax=ax, shrink=0.7, pad=0.01)
     cb.set_label("change in distance to the nearest\nfacility (km); negative = closer", fontsize=6.5)
     ax.set_title(f"Change of access, {LABEL[new]}\nversus {LABEL[base]}", linespacing=1.3)
@@ -247,7 +247,8 @@ def us_map(methods=("wkmeans", "fmm_lam10.0"), seed=0):
     for ax, m in zip(np.atleast_1d(axes), methods):
         sc = region_panel(ax, pts, rr[(m, seed)], extent, 1 / np.cos(np.radians(38)), dot=0.3, outline=outl,
                           edges=False)
-    colorbar_legend(fig, sc, axes)
+    fig.subplots_adjust(hspace=0.25, bottom=0.07)
+    colorbar_legend(fig, sc, axes, y=0.0)
     fig.savefig(FIG / "map_us48.pdf", bbox_inches="tight", dpi=400)
     plt.close(fig)
 
