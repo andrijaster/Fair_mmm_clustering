@@ -73,7 +73,7 @@ def fairness_report(X, centers, radii, weights=None):
 class FairMMM:
     """Individually fair clustering by smooth min-max-min optimisation.
 
-    Minimises  cost(C)/n + lam * Phi(C)  (Petrovic & Nikolic), where Phi is the
+    Minimises  cost(C)/n + lam * Phi(C)  (Petrovic), where Phi is the
     Tsoukalas-Rustem smoothing of the maximal fairness violation
     alpha(C) = max_i min_j ||x_i - c_j|| / delta_i. ``lam=float('inf')`` solves the pure
     min-max-min problem; ``lam=0`` is k-means.
