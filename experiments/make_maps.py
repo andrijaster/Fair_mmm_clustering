@@ -160,13 +160,13 @@ def la_county(methods=("wkmeans", "fmm_lam10.0", "fmm_lam10_bal10.0"), seed=0):
 
 
 def graphical_abstract(seed=0):
-    """Graphical abstract for the AEI submission: the Los Angeles panels with planning labels."""
+    """Graphical abstract for the journal submission: the Los Angeles panels with planning labels."""
     global VIOL, FIG
     old = (dict(LABEL), VIOL, FIG)
     LABEL.update({"wkmeans": "Efficiency only\n(weighted $k$-means)", "fmm_lam10.0": "Equity-aware\n(FMM, $\\lambda=10$)",
                   "fmm_lam10_bal10.0": "Equity + balanced loads\n(FMM, $\\lambda=10$, $\\gamma=10$)"})
     VIOL = "outside radius"
-    FIG = ROOT.parent / "paper" / "aei_submission"
+    FIG = ROOT.parent / "paper" / "kbs_submission"
     la_county(seed=seed)
     (FIG / "map_la_county.pdf").rename(FIG / "graphical_abstract.pdf")
     LABEL.clear(); LABEL.update(old[0]); VIOL, FIG = old[1], old[2]

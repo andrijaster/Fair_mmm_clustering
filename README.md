@@ -2,7 +2,7 @@
 
 `fairmmm` implements **FMM**, the method of
 
-> A. Petrović. *Equitable facility siting via individually fair clustering and smooth min-max-min optimisation.* Submitted to Advanced Engineering Informatics.
+> A. Petrović. *Equitable facility siting via individually fair clustering and smooth min-max-min optimisation.* Submitted to Knowledge-Based Systems.
 
 Individual fairness in clustering (Jung, Kannan & Lutz, 2020) asks that every point $x_i$ have a centre within its **fairness radius** $\delta_i$: the distance to its $\lceil n/k\rceil$-th nearest neighbour, i.e. the radius that holds the $n/k$ points a centre serves on average. The maximal violation is
 
@@ -170,7 +170,7 @@ experiments/       scripts that produce every table and figure of the paper
 @article{Petrovic_FairMMM,
   author  = {Petrovi{\'c}, Andrija},
   title   = {Equitable facility siting via individually fair clustering and smooth min-max-min optimisation},
-  journal = {Advanced Engineering Informatics},
+  journal = {Knowledge-Based Systems},
   note    = {submitted},
   year    = {2026}
 }
