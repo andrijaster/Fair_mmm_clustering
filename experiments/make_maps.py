@@ -35,6 +35,7 @@ LABEL = {"wkmeans": "weighted $k$-means", "fmm_lam1.0": r"FMM, $\lambda=1$", "fm
          "fmm_lam10_bal1.0": r"FMM, $\lambda=10$, $\gamma=1$", "fmm_lam10_bal100.0": r"FMM, $\lambda=10$, $\gamma=100$"}
 plt.rcParams.update({"font.size": 7, "axes.titlesize": 7, "legend.fontsize": 6.5, "pdf.fonttype": 42, "axes.linewidth": 0.5})
 W = 5.15  # text width of the journal template (inches)
+VIOL = "outside radius"  # wording of the share below each panel title
 
 
 def read_shp(zname):
@@ -121,7 +122,7 @@ def region_panel(ax, pts, run, extent, aspect, dot=1.0, roads=None, outline=None
     for sp in ax.spines.values():
         sp.set_color(MUTED)
     ax.set_title(f"{LABEL[run['method']]}\n$\\alpha={run['max_ratio']:.2f}$\n"
-                 f"{100 * run['pop_violating']:.1f}% not served fairly", linespacing=1.35, fontsize=6.5)
+                 f"{100 * run['pop_violating']:.1f}% {VIOL}", linespacing=1.35, fontsize=6.5)
     return sc
 
 
@@ -129,7 +130,7 @@ def colorbar_legend(fig, sc, axes, y=0.13):
     cb = fig.colorbar(sc, ax=axes, shrink=0.6, pad=0.01, aspect=30)
     cb.set_label(r"ratio $r_i=d(\mathbf{x}_i,C)/\delta_i$", fontsize=6.5)
     cb.outline.set_linewidth(0.4)
-    h = [plt.Line2D([], [], marker="o", ls="", color=ORANGE, ms=4, label=r"not served fairly ($r_i>1$)"),
+    h = [plt.Line2D([], [], marker="o", ls="", color=ORANGE, ms=4, label=r"outside radius ($r_i>1$)"),
          plt.Line2D([], [], marker="*", ls="", color=INK, ms=8, label="facility (centre)"),
          plt.Line2D([], [], color="#404040", lw=0.8, label="service-area boundary")]
     fig.legend(handles=h, loc="lower center", ncol=3, frameon=False, fontsize=6.5, bbox_to_anchor=(0.45, y))
@@ -156,6 +157,19 @@ def la_county(methods=("wkmeans", "fmm_lam10.0", "fmm_lam10_bal10.0"), seed=0):
     colorbar_legend(fig, sc, axes)
     fig.savefig(FIG / "map_la_county.pdf", bbox_inches="tight", dpi=400)
     plt.close(fig)
+
+
+def graphical_abstract(seed=0):
+    """Graphical abstract for the AEI submission: the Los Angeles panels with planning labels."""
+    global VIOL, FIG
+    old = (dict(LABEL), VIOL, FIG)
+    LABEL.update({"wkmeans": "Efficiency only\n(weighted $k$-means)", "fmm_lam10.0": "Equity-aware\n(FMM, $\\lambda=10$)",
+                  "fmm_lam10_bal10.0": "Equity + balanced loads\n(FMM, $\\lambda=10$, $\\gamma=10$)"})
+    VIOL = "outside radius"
+    FIG = ROOT.parent / "paper" / "aei_submission"
+    la_county(seed=seed)
+    (FIG / "map_la_county.pdf").rename(FIG / "graphical_abstract.pdf")
+    LABEL.clear(); LABEL.update(old[0]); VIOL, FIG = old[1], old[2]
 
 
 def la_access_change(base="wkmeans", new="fmm_lam10.0", seed=0):
@@ -295,3 +309,5 @@ if __name__ == "__main__":
         us_map()
     if "gowalla" in todo:
         gowalla_world()
+    if "ga" in todo:
+        graphical_abstract()

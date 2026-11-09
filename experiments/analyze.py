@@ -18,7 +18,7 @@ TAB = ROOT / "paper_out" / "tables"
 FIG.mkdir(parents=True, exist_ok=True)
 TAB.mkdir(parents=True, exist_ok=True)
 
-REGION_NAME = {"la_county": "Los Angeles Co.", "california": "California", "texas": "Texas", "us48": "US (48)"}
+REGION_NAME = {"la_county": "Los Angeles Co.", "california": "California", "texas": "Texas", "us48": "Contiguous U.S."}
 DATASETS = ["adult", "bank", "diabetes", "gowalla", "skin", "shuttle", "covtype"]
 W = 5.15  # text width of the journal template (inches): figures are drawn at their printed size
 # categorical slots (reference palette): FMM blue, TKM orange, LSPP aqua; other baselines ink
@@ -86,7 +86,7 @@ def best_tkm(by, d):
 
 
 NAMES = {"kmeans": "$k$-means", "greedy": "Greedy", "icml20": "ICML20$^\\dagger$", "lspp": "LSPP",
-         "ratio_greedy": "Ratio greedy", "wkm_delta": "$k$-means, $w_i=\\delta_i^{-2}$"}
+         "ratio_greedy": "Ratio greedy", "wkm_delta": "$\\delta$-weighted $k$-means"}
 ORDER = [("kmeans", None), ("wkm_delta", None), ("ratio_greedy", None), ("greedy", None), ("icml20", None),
          ("lspp", None), "tkm", ("fmm", 1.0), ("fmm", 10.0), ("fmm", math.inf)]
 
@@ -303,7 +303,7 @@ def pareto(by, front_rows):
                     markeredgecolor="white", markeredgewidth=0.4, zorder=4)
         for meth, mk, col, lab, size in [("kmeans", "s", INK, "$k$-means", 4), ("icml20", "D", MUTED, "ICML20", 3.5),
                                          ("lspp", "*", AQUA, "LSPP (default)", 8), ("wkm_delta", "P", VIOLET,
-                                         "$k$-means, $w_i=\\delta_i^{-2}$", 4.5), ("ratio_greedy", "X", MUTED,
+                                         "$\\delta$-weighted $k$-means", 4.5), ("ratio_greedy", "X", MUTED,
                                          "ratio greedy", 4.5)]:
             rs = by.get((d, (meth, None)))
             if rs:
